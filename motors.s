@@ -3,6 +3,8 @@
 @
 @ This file implements all functions from api_robot2 related to the robot motors
 
+.global set_motor_speed
+.global set_motors_speed
 
 @ Parameter:
 @ Sets motor speed.
@@ -15,7 +17,7 @@ set_motor_speed:
         ldrb r0, [r0]               @ Loads motor id
         stmfd sp!, {r0, r1}         @ Stacks parameters for syscall
 
-        mov r7, #18                 
+        mov r7, #18
         svc 0x0
 
         add sp, sp, #8              @ Removes parameters from stack and returns

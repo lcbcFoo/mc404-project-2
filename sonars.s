@@ -3,6 +3,9 @@
 @
 @ This file implements all functions from api_robot2.h related to the robot sonars
 
+.global read_sonar
+.global read_sonars
+.global register_proximity_callback
 
 @ Reads one of the sonars.
 @ Parameter:

@@ -3,6 +3,9 @@
 @
 @ This file implements all functions from api_robot2.h related to system time
 
+.global add_alarm
+.global get_time
+.global set_time
 
 @ Adds an alarm to the system.
 @ Parameter:
