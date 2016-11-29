@@ -10,7 +10,6 @@
 _start:
 
 interrupt_vector:
-
         b RESET_HANDLER
 .org 0x08
         b SYSCALL_HANDLER
@@ -24,9 +23,9 @@ interrupt_vector:
 RESET_HANDLER:
 
         @ Starts SYSTEM_TIME as 0
-        ldr, r0, =SYSTEM_TIME
+        ldr r0, =SYSTEM_TIME
         mov r1, #0
-        str, r1, [r0]
+        str r1, [r0]
 
         @ Set interrupt table base address on coprocessor 15.
         ldr r0, =interrupt_vector
@@ -50,8 +49,9 @@ SET_GPT:
         ldr r0, =GPT_PR_ADDR
         str r1, [r0]
 
-        @ GPT_OCR1 <= #100
-        mov r1, #100
+        @ GPT_OCR1 <= TIME_SZ
+        .set TIME_SZ, 100
+        ldr r1, =TIME_SZ
         ldr r0, =GPT_OCR1_ADDR
         str r1, [r0]
 
@@ -99,12 +99,34 @@ SET_TZIC:
         mov	r0, #1
         str	r0, [r1, #TZIC_INTCTRL]
 
-        msr  CPSR_c, #0x13               @ SUPERVISOR mode, IRQ/FIQ enabled
+
+CONFIGURE_STACKS:
+        .set mask, 0x1f
+
+        @  Set stack pointer for supervisor mode
+        mrs r0, cpsr
+        bic r0, r0, #mask
+        orr r0, r0, #0x13
+        msr cpsr, r0
+        ldr sp, =SVC_STACK
+
+        @ Set stack pointer for IRQ mode
+        bic r0, r0, #mask
+        orr r0, r0, #0x12
+        msr cpsr, r0
+        ldr sp, =IRQ_STACK
+
+        @ Set stack pointer for system/user mode
+        bic r0, r0, #mask
+        orr r0, r0, #0x1F
+        msr cpsr, r0
+        ldr sp, =SYS_USER_STACK
+
 
 SET_GPIO:
         .set BASE_GPIO, 0x53F84000
 
-@ TERMINAAAR---------
+        @ TERMINAAAR---------
 
 
         @ Waits for interruption
@@ -112,8 +134,27 @@ SET_GPIO:
 
 
 SYSCALL_HANDLER:
-@ TERMINAAAR----------
+        @ Saves registers on SVC_STACK
+        stmfd sp!, {r1-r12}
 
+        @ Changes to system mode so sp is the same from user
+        mrs r1, cpsr
+        bic r1, r1, #mask
+        orr r1, r1, #0x1F
+        msr cpsr, r1
+
+        @ TREAT THE SYSCALL (FAZER)
+
+        @ Return to SVC mode
+        mrs r1, cpsr
+        bic r1, r1, #mask
+        orr r1, r1, #0x13
+        msr cpsr, r1
+
+        @ Recovers registers from SVC_STACK (r0 contains the return of the syscall)
+        ldmfd sp!, {r1-r12}
+        sub lr, lr, #4
+        movs pc, lr
 
 
 @ Handles hardware interruption (called after GPT completed TIME_SZ cycles)
@@ -146,4 +187,11 @@ waiting_interruption:
 
 @ Data
 .data
-SYSTEM_TIME:                            @ system time, updated after TIME_SZ cycles
+SYSTEM_TIME:                    @ System time, updated after TIME_SZ cycles
+
+
+@ Defines the stacks for IRQ mode, system/user mode and supervisor mode
+.org 0x77808000
+IRQ_STACK: .skip 400
+SVC_STACK: .skip 12000
+SYS_USER_STACK: .skip 12000
