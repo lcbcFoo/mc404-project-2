@@ -19,7 +19,6 @@ interrupt_vector:
 
 .org 0x100
 .text
-
 RESET_HANDLER:
 
         @ Starts SYSTEM_TIME as 0
@@ -62,12 +61,12 @@ SET_GPT:
 
 SET_TZIC:
         @ Sets TZIC registers adressess
-        .set TZIC_BASE,             0x0FFFC000
-        .set TZIC_INTCTRL,          0x0
-        .set TZIC_INTSEC1,          0x84
-        .set TZIC_ENSET1,           0x104
-        .set TZIC_PRIOMASK,         0xC
-        .set TZIC_PRIORITY9,        0x424
+        .set TZIC_BASE, 0x0FFFC000
+        .set TZIC_INTCTRL, 0x0
+        .set TZIC_INTSEC1, 0x84
+        .set TZIC_ENSET1, 0x104
+        .set TZIC_PRIOMASK, 0xC
+        .set TZIC_PRIORITY9, 0x424
 
         @ Starts interruption handler
         ldr	r1, =TZIC_BASE
@@ -101,59 +100,59 @@ SET_TZIC:
 
 
 CONFIGURE_STACKS:
-        .set mask, 0x1f
 
         @  Set stack pointer for supervisor mode
-        mrs r0, cpsr
-        bic r0, r0, #mask
-        orr r0, r0, #0x13
-        msr cpsr, r0
+        msr cpsr_c, #0x13
         ldr sp, =SVC_STACK
 
         @ Set stack pointer for IRQ mode
-        bic r0, r0, #mask
-        orr r0, r0, #0x12
-        msr cpsr, r0
+        msr cpsr_c, #0x12
         ldr sp, =IRQ_STACK
 
         @ Set stack pointer for system/user mode
-        bic r0, r0, #mask
-        orr r0, r0, #0x1F
-        msr cpsr, r0
+        msr cpsr_c, #0x1F
         ldr sp, =SYS_USER_STACK
 
 
 SET_GPIO:
-        .set BASE_GPIO, 0x53F84000
+        @ Defines masks used to communicate with GPIO
+        .set BASE_GPIO,             0x53F84000
+        .set GDIR_MASK,             0x7C003FFF
+        .set WRITE_SONAR_ID_MASK,   0x7C000000
+        .set READ_SONAR_MASK,       0x03FFC000
+        .set WRITE_MOTOR0_SPEED,    0x00003F80
+        .set WRITE_MOTOR1_SPEED,    0x0000007F
 
-        @ TERMINAAAR---------
+        ldr r0, =GDIR_MASK
+        ldr r1, =BASE_GPIO
+        str r0, [r1, #4]
 
+        @ Change to user mode and changes control to user program
+        msr cpsr_c, #0x10
 
-        @ Waits for interruption
-        b waiting_interruption
+        .set USER_MAIN,             0x77802000
+        ldr pc, =USER_MAIN
 
 
 SYSCALL_HANDLER:
         @ Saves registers on SVC_STACK
         stmfd sp!, {r1-r12}
-
+        mov r0, #6
         @ Changes to system mode so sp is the same from user
-        mrs r1, cpsr
-        bic r1, r1, #mask
-        orr r1, r1, #0x1F
-        msr cpsr, r1
+        msr cpsr_c, #0x1F
 
         @ TREAT THE SYSCALL (FAZER)
+        ldmfd sp, {r0}
+        msr cpsr_c, #0x13
+        stmfd sp!, {lr}
+        bl sys_read_sonar
+        ldmfd sp!, {lr}
 
-        @ Return to SVC mode
-        mrs r1, cpsr
-        bic r1, r1, #mask
-        orr r1, r1, #0x13
-        msr cpsr, r1
+
 
         @ Recovers registers from SVC_STACK (r0 contains the return of the syscall)
         ldmfd sp!, {r1-r12}
-        sub lr, lr, #4
+
         movs pc, lr
 
 
@@ -180,18 +179,12 @@ IRQ_HANDLER:
         movs pc, lr
 
 
-waiting_interruption:
-        b waiting_interruption
-
-
-
 @ Data
 .data
 SYSTEM_TIME:                    @ System time, updated after TIME_SZ cycles
-
+.skip 512
 
 @ Defines the stacks for IRQ mode, system/user mode and supervisor mode
-.org 0x77808000
-IRQ_STACK: .skip 400
-SVC_STACK: .skip 12000
-SYS_USER_STACK: .skip 12000
+IRQ_STACK: .skip 512
+SVC_STACK: .skip 512
+SYS_USER_STACK:

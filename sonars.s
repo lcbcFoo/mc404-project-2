@@ -30,8 +30,11 @@ read_sonar:
 @ Returns:
 @   void
 read_sonars:
-        stmfd sp!, {lr}         @ Stores the return link in the stack
+        stmfd sp!, {r0-r3}
+
         mov r3, r0              @ Stores the start sonar in r3
+        lsl r0, r0, #2
+        add r2, r2, r0
 
 loop:
         bl read_sonar           @ Reads sonar for current sonar id
@@ -42,7 +45,7 @@ loop:
         cmp r0, r1
         blt loop
 
-        ldmfd sp!, {lr}         @ Recovers lr from stack and returns
+        ldmfd sp!, {r0-r3}     @ Recovers lr from stack and returns
         mov pc, lr
 
 /* Parameters:
@@ -53,10 +56,12 @@ loop:
 *   void
 */
 register_proximity_callback:
+        stmfd sp!, {r0}
         stmfd sp!, {r0-r3}      @ Stacks parameters and makes a syscall
 
         mov r7, #17
         svc 0x0
 
         add sp, sp, #12         @ Removes parameters from stack and return
+        ldmfd sp!, {r0}
         mov pc, lr

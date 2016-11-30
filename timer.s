@@ -18,7 +18,7 @@ add_alarm:
         mov r7, #22
         svc 0x0
 
-        add sp, sp, #8
+        ldmfd sp!, {r0, r1}
         mov pc, lr
 
 @ Reads the system time.
@@ -27,20 +27,25 @@ add_alarm:
 @ Returns:
 @   void
 get_time:
+        stmfd sp!, {r0, r1}
         mov r1, r0
         mov r7, #20
         svc 0x0
 
+        ldmfd sp!, {r0, r1}
         ldr r0, [r1]
+
         mov pc, lr
 
 @ Sets the system time.
 @ Parameter:
 @   r0: the new system time.
+@ Returns:
+@   void
 set_time:
         stmfd sp!, {r0}
         mov r7, #21
         svc 0x0
 
-        add sp, sp, #4
+        ldmfd sp!, {r0}
         mov pc, lr
