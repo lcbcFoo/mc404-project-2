@@ -6,8 +6,14 @@
 # ----------------------------------------
 
 # ----------------------------------
-# SOUL object files -- Add your SOUL object files here
-SOUL_OBJS=soul.o
+# SOUL object files
+SOUL_OBJS=soul.o syscalls.o
+
+# LOCO object files
+LOCO_OBJS=ronda.o
+
+# BICO object files
+BICO_OBJS= motors.o sonars.o timer.o
 
 # ----------------------------------
 # Compiling/Assembling/Linking Tools and flags
@@ -37,7 +43,7 @@ all: disk.img
 SOUL.x: $(SOUL_OBJS)
 	$(LD) $^ -o $@ $(LD_FLAGS) --section-start=.iv=0x778005e0 -Ttext=0x77800700 -Tdata=0x77801800 -e 0x778005e0
 
-LOCO.x: loco.o bico.o
+LOCO.x: $(LOCO_OBJS) $(BICO_OBJS)
 	$(LD) $^ -o $@ $(LD_FLAGS) -Ttext=0x77802000
 
 disk.img: SOUL.x LOCO.x
