@@ -32,9 +32,8 @@ get_time:
         mov r7, #20
         svc 0x0
 
-        ldmfd sp!, {r0, r1}
         ldr r0, [r1]
-
+        ldmfd sp!, {r0, r1}
         mov pc, lr
 
 @ Sets the system time.
