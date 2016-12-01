@@ -12,7 +12,6 @@
 @ Returns:
 @   void
 set_motor_speed:
-        stmfd sp!, {r0-r1}
 
         ldrb r1, [r0, #1]           @ Loads the speed
         ldrb r0, [r0]               @ Loads motor id
@@ -22,7 +21,6 @@ set_motor_speed:
         svc 0x0
 
         add sp, sp, #8              @ Removes parameters from stack and returns
-        ldmfd sp!, {r0-r1}
         mov pc, lr
 
 
@@ -33,19 +31,6 @@ set_motor_speed:
 @ Returns:
 @   void
 set_motors_speed:
-        stmfd sp!, {r0-r3}
-
-
-        ldrb r2, [r0]               @ Loads motors id
-        ldrb r3, [r1]
-
-        cmp r2, r3                  @ Checks if r0 contains the motor0 address
-        blt endif
-        mov r2, r0                  @ if not, swaps r0 and r1
-        mov r0, r1
-        mov r1, r2
-
-endif:
 
         ldrb r0, [r0, #1]           @ Loads motor0 speed
         ldrb r1, [r1, #1]           @ Loads motor1 speed
@@ -55,5 +40,4 @@ endif:
         svc 0x0
 
         add sp, sp, #8              @ Removes parameters from stack and returns
-        ldmfd sp!, {r0-r3}
         mov pc, lr
