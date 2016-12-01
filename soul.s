@@ -21,11 +21,6 @@ interrupt_vector:
 .text
 RESET_HANDLER:
 
-        @ Starts SYSTEM_TIME as 0
-        ldr r0, =SYSTEM_TIME
-        mov r1, #0
-        str r1, [r0]
-
         @ Set interrupt table base address on coprocessor 15.
         ldr r0, =interrupt_vector
         mcr p15, 0, r0, c12, c0, 0
@@ -115,40 +110,45 @@ CONFIGURE_STACKS:
 
 
 SET_GPIO:
-        @ Defines masks used to communicate with GPIO
-        .set BASE_GPIO,             0x53F84000
-        .set GDIR_MASK,             0x7C003FFF
-        .set WRITE_SONAR_ID_MASK,   0x7C000000
-        .set READ_SONAR_MASK,       0x03FFC000
-        .set WRITE_MOTOR0_SPEED,    0x00003F80
-        .set WRITE_MOTOR1_SPEED,    0x0000007F
-
+        .set GDIR_MASK, 0xFFFC003E
+        .set BASE_GPIO, 0x53F84000
         ldr r0, =GDIR_MASK
         ldr r1, =BASE_GPIO
         str r0, [r1, #4]
 
+        mov r0, #0
+
+        ldr r0, [r1, #4]
+
         @ Change to user mode and changes control to user program
         msr cpsr_c, #0x10
 
-        .set USER_MAIN,             0x77802000
+        .set USER_MAIN, 0x77802000
         ldr pc, =USER_MAIN
 
 
 SYSCALL_HANDLER:
         @ Saves registers on SVC_STACK
         stmfd sp!, {r1-r12}
-        mov r0, #6
-        @ Changes to system mode so sp is the same from user
-        msr cpsr_c, #0x1F
 
-        @ TREAT THE SYSCALL (FAZER)
-        ldmfd sp, {r0}
-        msr cpsr_c, #0x13
+        @ Determines which syscall qas made and treat it
         stmfd sp!, {lr}
-        bl sys_read_sonar
+        cmp r7, #16
+        bleq sys_read_sonar
+        cmp r7, #17
+        bleq sys_reg_prox_callback
+        cmp r7, #18
+        bleq sys_motor_speed
+        cmp r7, #19
+        bleq sys_motors_speed
+        cmp r7, #20
+        bleq sys_get_time
+        cmp r7, #21
+        bleq sys_set_time
+        cmp r7, #22
+        bleq sys_set_alarm
+
         ldmfd sp!, {lr}
-
-
 
         @ Recovers registers from SVC_STACK (r0 contains the return of the syscall)
         ldmfd sp!, {r1-r12}
@@ -158,7 +158,7 @@ SYSCALL_HANDLER:
 
 @ Handles hardware interruption (called after GPT completed TIME_SZ cycles)
 IRQ_HANDLER:
-        stmfd sp!, {r0-r1}
+        stmfd sp!, {r0-r8}
 
         @ GPT_SR <= #1
         .set GPT_SR_ADDR, 0x53FA0008
@@ -167,24 +167,23 @@ IRQ_HANDLER:
         str r1, [r0]
 
         @ Updates system time
-        ldr r0, =SYSTEM_TIME
-        ldr r1, [r0]
-        add r1, r1, #1
-        str r1, [r0]
+        stmfd sp!, {lr}
+        bl update_sys_time
+        bl check_alarms
+        ldmfd sp!, {lr}
 
         @ Returns
         sub lr, lr, #4
 
-        ldmfd sp!, {r0-r1}
+        ldmfd sp!, {r0-r8}
         movs pc, lr
 
 
 @ Data
 .data
-SYSTEM_TIME:                    @ System time, updated after TIME_SZ cycles
 .skip 512
 
 @ Defines the stacks for IRQ mode, system/user mode and supervisor mode
 IRQ_STACK: .skip 512
-SVC_STACK: .skip 512
+SVC_STACK: .skip 1024
 SYS_USER_STACK:
