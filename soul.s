@@ -21,6 +21,7 @@ interrupt_vector:
 .text
 RESET_HANDLER:
 
+        @ Initializates system control variables
         bl sys_init
 
         @ Set interrupt table base address on coprocessor 15.
@@ -117,9 +118,7 @@ SET_GPIO:
         ldr r0, =GDIR_MASK
         ldr r1, =BASE_GPIO
         str r0, [r1, #4]
-
         mov r0, #0
-
         ldr r0, [r1, #4]
 
         @ Change to user mode and changes control to user program
@@ -129,9 +128,15 @@ SET_GPIO:
         ldr pc, =USER_MAIN
 
 
+
+@ SYSCALL_HANDLER: Executes a software interruption
 SYSCALL_HANDLER:
         @ Saves registers on SVC_STACK
         stmfd sp!, {r1-r12}
+
+        @ Syscall made to recover IRQ mode
+        cmp r7, #2
+        moveq pc, lr
 
         @ Determines which syscall qas made and treat it
         stmfd sp!, {lr}
@@ -154,7 +159,6 @@ SYSCALL_HANDLER:
 
         @ Recovers registers from SVC_STACK (r0 contains the return of the syscall)
         ldmfd sp!, {r1-r12}
-
         movs pc, lr
 
 
@@ -168,15 +172,19 @@ IRQ_HANDLER:
         ldr r0, =GPT_SR_ADDR
         str r1, [r0]
 
+        @ Disables new interruptions while this one is beeing executed
+        mrs r0, cpsr
+        cpsid i
+
         @ Updates system time
-        stmfd sp!, {lr}
+        stmfd sp!, {r0, lr}
         bl update_sys_time
         bl check_alarms
-        ldmfd sp!, {lr}
+        ldmfd sp!, {r0, lr}
 
-        @ Returns
+        @ Enables new interruptions and return
+        msr cpsr_c, r0
         sub lr, lr, #4
-
         ldmfd sp!, {r0-r8}
         movs pc, lr
 
