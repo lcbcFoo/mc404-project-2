@@ -301,9 +301,6 @@ check_alarms:
         @ r1 ==  alarm to be executed
         sub r1, r1, #1
 
-
-        mov r7, r2
-
         @ Stores last element into the new empty position
         sub r5, r5, #1
         str r5, [r6]
@@ -317,11 +314,21 @@ check_alarms:
         str r3, [r0, r1, lsl#2]
 
 
-        @ CHANGE OP MODE!!!!
+        @ Change to user mode and call user function
         stmfd sp!, {r0-r12, lr}
+        msr cpsr_c, #0x10
+        stmfd sp!, {lr}
         blx r4
+        ldmfd sp!, {lr}
+
+        @ Syscalls to recover mode
+        mov r7, #2
+        svc 0x0
+        msr cpsr_c, #0x12
         ldmfd sp!, {r0-r12, lr}
 
+        @ Checks if other functions need to be called
+        ldr r0, =ALARMS_ARRAY
         b loop5
 
     end:
