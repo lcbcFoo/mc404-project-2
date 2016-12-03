@@ -41,10 +41,10 @@ all: disk.img
 # ----------------------------------
 # Specific Rules
 SOUL.x: $(SOUL_OBJS)
-	$(LD) $^ -o $@ $(LD_FLAGS) --section-start=.iv=0x778005e0 -Ttext=0x77800700 -Tdata=0x77801800 -e 0x778005e0
+	$(LD) $^ -o $@ $(LD_FLAGS) --section-start=.iv=0x778005e0 -Ttext=0x77801000 -Tdata=0x77807000 -e 0x778005e0
 
 LOCO.x: $(LOCO_OBJS) $(BICO_OBJS)
-	$(LD) $^ -o $@ $(LD_FLAGS) -Ttext=0x77802000
+	$(LD) $^ -o $@ $(LD_FLAGS) -Ttext=0x7780A000
 
 disk.img: SOUL.x LOCO.x
 	mksd.sh --so SOUL.x --user LOCO.x
