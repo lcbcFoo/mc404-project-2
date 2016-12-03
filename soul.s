@@ -21,6 +21,8 @@ interrupt_vector:
 .text
 RESET_HANDLER:
 
+        bl sys_init
+
         @ Set interrupt table base address on coprocessor 15.
         ldr r0, =interrupt_vector
         mcr p15, 0, r0, c12, c0, 0
@@ -44,7 +46,7 @@ SET_GPT:
         str r1, [r0]
 
         @ GPT_OCR1 <= TIME_SZ
-        .set TIME_SZ, 100
+        .set TIME_SZ, 500
         ldr r1, =TIME_SZ
         ldr r0, =GPT_OCR1_ADDR
         str r1, [r0]
@@ -162,7 +164,7 @@ IRQ_HANDLER:
 
         @ GPT_SR <= #1
         .set GPT_SR_ADDR, 0x53FA0008
-        mov r1, #0
+        mov r1, #1
         ldr r0, =GPT_SR_ADDR
         str r1, [r0]
 
