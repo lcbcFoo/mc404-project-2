@@ -131,12 +131,12 @@ SET_GPIO:
 
 @ SYSCALL_HANDLER: Executes a software interruption
 SYSCALL_HANDLER:
-        @ Saves registers on SVC_STACK
-        stmfd sp!, {r1-r12}
-
         @ Syscall made to recover IRQ mode
         cmp r7, #2
         moveq pc, lr
+
+        @ Saves registers on SVC_STACK
+        stmfd sp!, {r1-r12}
 
         @ Determines which syscall qas made and treat it
         stmfd sp!, {lr}
@@ -172,18 +172,13 @@ IRQ_HANDLER:
         ldr r0, =GPT_SR_ADDR
         str r1, [r0]
 
-        @ Disables new interruptions while this one is beeing executed
-        mrs r0, cpsr
-        cpsid i
-
         @ Updates system time
-        stmfd sp!, {r0, lr}
+        stmfd sp!, {lr}
         bl update_sys_time
         bl check_alarms
-        ldmfd sp!, {r0, lr}
+        ldmfd sp!, {lr}
 
         @ Enables new interruptions and return
-        msr cpsr_c, r0
         sub lr, lr, #4
         ldmfd sp!, {r0-r8}
         movs pc, lr

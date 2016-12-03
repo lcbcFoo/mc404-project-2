@@ -332,7 +332,8 @@ check_alarms:
         b loop5
 
     end:
-        mov pc, lr
+        movs pc, lr
+
 
 .data
 SYSTEM_TIME: .skip 4                 @ System time, updated after TIME_SZ cycles
