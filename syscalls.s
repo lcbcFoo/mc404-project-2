@@ -14,7 +14,7 @@
 .globl update_sys_time
 .globl check_alarms
 .globl sys_init
-
+.globl check_callbacks
 
 @ Defines max number of alarms and callbacks
 .set MAX_ALARMS,     8
@@ -85,6 +85,104 @@ sys_reg_prox_callback:
         msr cpsr_c, #0x1F
         ldmfd sp, {r0-r2}
         msr cpsr_c, #0x13
+
+        mov r6, r0
+        mov r7, r1
+        mov r8, r2
+
+        @ Checks if MAX_CALLBACKS is not reached
+        ldr r0, =NUM_CALLBACKS
+        ldr r1, =MAX_CALLBACKS
+        ldr r0, [r0]
+
+        cmp r0, r1
+        blo endif9
+        mov r0, #-1
+        mov pc, lr
+
+    endif9:
+
+        @ Check if sonar id is valid
+        cmp r6, #16
+        bls endif10
+        mov r0, #-2
+        mov pc, lr
+
+    endif10:
+        @ Stores new callback sonar id, distance and respective function
+        ldr r0, =NUM_CALLBACKS
+        ldr r0, [r0]
+        ldr r1, =CALLBACKS_SONARS
+        str r6, [r1, r0, lsl#2]
+        ldr r1, =CALLBACKS_DISTANCES
+        str r7, [r1, r0, lsl#2]
+        ldr r1, =CALLBACKS_FUNCTIONS
+        str r8, [r1, r0, lsl#2]
+
+        @ NUM_CALLBACKS++
+        ldr r0, =NUM_CALLBACKS
+        ldr r1, [r0]
+        add r1, r1, #1
+        str r1, [r0]
+
+        mov r0, #0
+        mov pc, lr
+
+
+@ Check if some callback should be made
+check_callbacks:
+        mov r1, #0                      @ r1 <= counter
+        ldr r2, =CALLBACKS_SONARS       @ r2 <= sonars array base
+        ldr r3, =CALLBACKS_DISTANCES    @ r3 < distances array base
+
+    loop3:
+        @ Checks if all callbacks were tested
+        ldr r7, =NUM_CALLBACKS
+        ldr r7, [r7]
+        cmp r1, r7
+        beq end3
+
+        ldr r4, [r2, r1, lsl#2]         @ r4 <= sonar to be read
+        ldr r5, [r3, r1, lsl#2]         @ r5 <= distance to be compared
+        add r1, r1, #1
+
+        @ Change mode and read sonar
+        msr cpsr_c, #0x1F
+        stmfd sp!, {r4}
+        mov r7, #16
+        svc 0x0
+        add sp, sp, #4
+
+        @ Recover IRQ mode
+        msr cpsr_c, #0x12
+
+        @ Compares sonar reading (r0) with callback distance (r5)
+        cmp r5, r0
+        blo loop3
+
+        @ Selects function to be called
+        sub r1, r1, #1
+        ldr r4, =CALLBACKS_FUNCTIONS
+        ldr r4, [r4, r1, lsl#2]            @ r4 <= function to be called
+
+        @ Change to user mode and call user function
+        stmfd sp!, {r0-r12, lr}
+        msr cpsr_c, #0x10
+        stmfd sp!, {lr}
+        blx r4
+        ldmfd sp!, {lr}
+
+        @ Syscalls to recover mode
+        mov r7, #2
+        svc 0x0
+        msr cpsr_c, #0x12
+        ldmfd sp!, {r0-r12, lr}
+
+        @ Checks if other functions need to be called
+        @b loop3
+
+    end3:
+        mov pc, lr
 
 @ Set a single motor speed
 sys_motor_speed:
@@ -332,12 +430,15 @@ check_alarms:
         b loop5
 
     end:
-        movs pc, lr
+        mov pc, lr
 
 
 .data
 SYSTEM_TIME: .skip 4                 @ System time, updated after TIME_SZ cycles
 NUM_ALARMS: .skip 4
 NUM_CALLBACKS: .skip 4
-ALARMS_ARRAY: .skip 32
-ALARMS_FUNCTIONS: .skip 32
+ALARMS_ARRAY: .skip 4 * MAX_ALARMS
+ALARMS_FUNCTIONS: .skip 4 * MAX_ALARMS
+CALLBACKS_SONARS: .skip 4 * MAX_CALLBACKS
+CALLBACKS_DISTANCES: .skip 4 * MAX_CALLBACKS
+CALLBACKS_FUNCTIONS: .skip 4 * MAX_CALLBACKS

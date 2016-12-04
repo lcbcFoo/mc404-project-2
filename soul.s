@@ -47,7 +47,7 @@ SET_GPT:
         str r1, [r0]
 
         @ GPT_OCR1 <= TIME_SZ
-        .set TIME_SZ, 500
+        .set TIME_SZ, 150
         ldr r1, =TIME_SZ
         ldr r0, =GPT_OCR1_ADDR
         str r1, [r0]
@@ -135,6 +135,8 @@ SYSCALL_HANDLER:
         cmp r7, #2
         moveq pc, lr
 
+	    msr cpsr_c, #0xD3
+
         @ Saves registers on SVC_STACK
         stmfd sp!, {r1-r12}
 
@@ -172,10 +174,13 @@ IRQ_HANDLER:
         ldr r0, =GPT_SR_ADDR
         str r1, [r0]
 
+        msr cpsr_c, #0xD2
+
         @ Updates system time
         stmfd sp!, {lr}
         bl update_sys_time
         bl check_alarms
+        bl check_callbacks
         ldmfd sp!, {lr}
 
         @ Enables new interruptions and return
