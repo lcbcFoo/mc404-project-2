@@ -47,7 +47,7 @@ SET_GPT:
         str r1, [r0]
 
         @ GPT_OCR1 <= TIME_SZ
-        .set TIME_SZ, 150
+        .set TIME_SZ, 100
         ldr r1, =TIME_SZ
         ldr r0, =GPT_OCR1_ADDR
         str r1, [r0]
@@ -113,6 +113,7 @@ CONFIGURE_STACKS:
 
 
 SET_GPIO:
+        @ Configure FDIR mask
         .set GDIR_MASK, 0xFFFC003E
         .set BASE_GPIO, 0x53F84000
         ldr r0, =GDIR_MASK
@@ -179,8 +180,8 @@ IRQ_HANDLER:
         @ Updates system time
         stmfd sp!, {lr}
         bl update_sys_time
-        bl check_alarms
         bl check_callbacks
+        bl check_alarms
         ldmfd sp!, {lr}
 
         @ Enables new interruptions and return
@@ -191,9 +192,9 @@ IRQ_HANDLER:
 
 @ Data
 .data
-.skip 512
 
 @ Defines the stacks for IRQ mode, system/user mode and supervisor mode
+.skip 512
 IRQ_STACK: .skip 512
-SVC_STACK: .skip 1024
+SVC_STACK: .skip 512
 SYS_USER_STACK:

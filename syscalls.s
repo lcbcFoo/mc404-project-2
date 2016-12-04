@@ -20,17 +20,15 @@
 .set MAX_ALARMS,     8
 .set MAX_CALLBACKS,  8
 
-@ Defines masks used to communicate with GPIO
+@ Defines mask used to communicate with GPIO
 .set BASE_GPIO,             0x53F84000
-.set WRITE_MOTOR0_SPEED,    0x00003F80
-.set WRITE_MOTOR1_SPEED,    0x0000007F
 
 .text
 @ Read a sonar
 sys_read_sonar:
-        msr cpsr_c, #0x1F
+        msr cpsr_c, #0xDF
         ldmfd sp, {r0}
-        msr cpsr_c, #0x13
+        msr cpsr_c, #0xD3
 
         @ Checks if sonar id is valid
         cmp r0, #16
@@ -80,11 +78,12 @@ sys_read_sonar:
 
         mov pc, lr
 
+
 @ Register a callback
 sys_reg_prox_callback:
-        msr cpsr_c, #0x1F
+        msr cpsr_c, #0xDF
         ldmfd sp, {r0-r2}
-        msr cpsr_c, #0x13
+        msr cpsr_c, #0xD3
 
         mov r6, r0
         mov r7, r1
@@ -154,7 +153,7 @@ check_callbacks:
         add sp, sp, #4
 
         @ Recover IRQ mode
-        msr cpsr_c, #0x12
+        msr cpsr_c, #0xD2
 
         @ Compares sonar reading (r0) with callback distance (r5)
         cmp r5, r0
@@ -167,7 +166,7 @@ check_callbacks:
 
         @ Change to user mode and call user function
         stmfd sp!, {r0-r12, lr}
-        msr cpsr_c, #0x10
+        msr cpsr_c, #0xD0
         stmfd sp!, {lr}
         blx r4
         ldmfd sp!, {lr}
@@ -175,7 +174,7 @@ check_callbacks:
         @ Syscalls to recover mode
         mov r7, #2
         svc 0x0
-        msr cpsr_c, #0x12
+        msr cpsr_c, #0xD2
         ldmfd sp!, {r0-r12, lr}
 
         @ Checks if other functions need to be called
@@ -184,11 +183,12 @@ check_callbacks:
     end3:
         mov pc, lr
 
+
 @ Set a single motor speed
 sys_motor_speed:
-        msr cpsr_c, #0x1F
+        msr cpsr_c, #0xDF
         ldmfd sp, {r0, r1}
-        msr cpsr_c, #0x13
+        msr cpsr_c, #0xD3
 
         @ Checks if motor id is ok
         cmp r0, #2
@@ -235,9 +235,9 @@ sys_motor_speed:
 
 @ Set both motors speed
 sys_motors_speed:
-        msr cpsr_c, #0x1F
+        msr cpsr_c, #0xDF
         ldmfd sp, {r0, r1}
-        msr cpsr_c, #0x13
+        msr cpsr_c, #0xD3
 
         @ Cheks motor 0 speed
         cmp r0, #64
@@ -278,18 +278,20 @@ sys_get_time:
         ldr r0, [r0]
         mov pc, lr
 
+
 @ Set new system time
 sys_set_time:
-        msr cpsr_c, #0x1F
+        msr cpsr_c, #0xDF
         ldmfd sp, {r1}
-        msr cpsr_c, #0x13
+        msr cpsr_c, #0xD3
         ldr r0, =SYSTEM_TIME
         str r1, [r0]
         mov pc, lr
 
+
 @ Init counters
 sys_init:
-        @ SYSTEM_TIME <= 0
+        @ SYSTEM_TIME, NUM_ALARMS e NUM_CALLBACKS <= 0
         ldr r0, =SYSTEM_TIME
         mov r1, #0
         str r1, [r0]
@@ -305,29 +307,15 @@ sys_init:
         ldr r0, =ALARMS_ARRAY
         mov r1, #0
         ldr r3, =MAX_ALARMS
-    loop4:
-        mov r2, #0
-        str r2, [r0, r1]
-        add r1, r1, #1
-        cmp r1, r3
-        bne loop4
-
-        ldr r0, =ALARMS_FUNCTIONS
-        mov r1, #0
-    loop2:
-        mov r2, #0
-        str r2, [r0, r1]
-        add r1, r1, #1
-        cmp r1, r3
-        bne loop2
 
         mov pc, lr
 
+
 @ Register alarm
 sys_set_alarm:
-        msr cpsr_c, #0x1F
+        msr cpsr_c, #0xDF
         ldmfd sp, {r0, r1}
-        msr cpsr_c, #0x13
+        msr cpsr_c, #0xD3
 
         mov r6, r0
         mov r7, r1
@@ -377,6 +365,7 @@ update_sys_time:
         str r1, [r0]
         mov pc, lr
 
+
 @ Check alarms
 check_alarms:
         ldr r0, =ALARMS_ARRAY           @ r0 <= array base
@@ -396,7 +385,7 @@ check_alarms:
         cmp r2, r3
         bne loop5
 
-        @ r1 ==  alarm to be executed
+        @ r1 <= alarm to be executed
         sub r1, r1, #1
 
         @ Stores last element into the new empty position
@@ -414,7 +403,7 @@ check_alarms:
 
         @ Change to user mode and call user function
         stmfd sp!, {r0-r12, lr}
-        msr cpsr_c, #0x10
+        msr cpsr_c, #0xD0
         stmfd sp!, {lr}
         blx r4
         ldmfd sp!, {lr}
@@ -422,7 +411,7 @@ check_alarms:
         @ Syscalls to recover mode
         mov r7, #2
         svc 0x0
-        msr cpsr_c, #0x12
+        msr cpsr_c, #0xD2
         ldmfd sp!, {r0-r12, lr}
 
         @ Checks if other functions need to be called
